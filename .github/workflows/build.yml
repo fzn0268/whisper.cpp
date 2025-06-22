@@ -528,6 +528,9 @@ jobs:
             github.event.inputs.run_type == 'full-ci' }}
     runs-on: windows-latest
 
+    env:
+      VULKAN_VERSION: 1.4.309.0
+
     strategy:
       matrix:
         build: [Release]
@@ -542,6 +545,8 @@ jobs:
             jnaPath: win32-x86-64
           - sdl2: ON
             s2ver: 2.28.5
+            vulkan-x64: ON
+          
 
     steps:
       - name: Clone
@@ -557,11 +562,21 @@ jobs:
           7z x sdl2.zip
           echo "SDL2_DIR=$env:GITHUB_WORKSPACE/SDL2-${{ matrix.s2ver }}/cmake" >> $env:GITHUB_ENV
 
+      - name: Install Vulkan SDK
+        id: get_vulkan
+        if: matrix.vulkan-x64 == 'ON'
+        run: |
+          curl.exe -o $env:RUNNER_TEMP/VulkanSDK-Installer.exe -L "https://sdk.lunarg.com/sdk/download/${env:VULKAN_VERSION}/windows/VulkanSDK-${env:VULKAN_VERSION}-Installer.exe"
+          & "$env:RUNNER_TEMP\VulkanSDK-Installer.exe" --accept-licenses --default-answer --confirm-command install
+          Add-Content $env:GITHUB_ENV "VULKAN_SDK=C:\VulkanSDK\${env:VULKAN_VERSION}"
+          Add-Content $env:GITHUB_PATH "C:\VulkanSDK\${env:VULKAN_VERSION}\bin"
+
       - name: Configure
         run: >
           cmake -S . -B ./build -A ${{ matrix.arch }}
           -DCMAKE_BUILD_TYPE=${{ matrix.build }}
           -DWHISPER_SDL2=${{ matrix.sdl2 }}
+          -DGGML_VULKAN=${{ matrix.vulkan-x64 }}
 
       - name: Build
         run: |
